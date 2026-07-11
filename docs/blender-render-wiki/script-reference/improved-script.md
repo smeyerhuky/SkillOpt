@@ -9,7 +9,7 @@ timestamp: "2026-07-11"
 
 # Improved Blender Script
 
-This is the complete corrected version of the original script. Save as `scripts/blender_nn_render.py` and run after `scripts/train_iris_classifier.py` has produced `scripts/nn_weights.npy`.
+This is the complete corrected version of the original script. Save as `scripts/blender_nn_render.py` and run after `scripts/train_iris_classifier.py` has produced `scripts/nn_weights.npz`.
 
 All four bugs from [known-bugs.md](./known-bugs.md) are fixed. Real trained weights are loaded. Signal particles are created. Camera and lighting are added.
 
@@ -17,7 +17,7 @@ All four bugs from [known-bugs.md](./known-bugs.md) are fixed. Real trained weig
 """
 blender_nn_render.py — Iris Classifier Neural Network Visualization
 Run: blender --background --python scripts/blender_nn_render.py --render-anim
-Prerequisite: python3 scripts/train_iris_classifier.py  (produces nn_weights.npy)
+Prerequisite: python3 scripts/train_iris_classifier.py  (produces nn_weights.npz)
 """
 import bpy
 import math
@@ -25,8 +25,8 @@ import numpy as np
 from pathlib import Path
 
 # ── Load real trained weights ─────────────────────────────────────────────────
-weights_path = Path(__file__).parent / "nn_weights.npy"
-data  = np.load(weights_path, allow_pickle=True).item()
+weights_path = Path(__file__).parent / "nn_weights.npz"
+data  = np.load(weights_path, )
 W     = [data['W1'], data['W2'], data['W3']]     # weight matrices
 acts  = [np.ones(4), data['a1'], data['a2'], data['a3']]  # per-layer activations
 
@@ -249,6 +249,6 @@ print("Neural Network Visualization Ready.")
 ## Cross-links
 
 - [script-reference/known-bugs.md](./known-bugs.md) — the four bugs this fixes
-- [stages/02-data.md](../stages/02-data.md) — produces nn_weights.npy
+- [stages/02-data.md](../stages/02-data.md) — produces nn_weights.npz
 - [stages/04-animate.md](../stages/04-animate.md) — animation design
 - [stages/05-render.md](../stages/05-render.md) — render execution

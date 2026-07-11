@@ -68,12 +68,10 @@ sample = (np.array([5.1, 3.5, 1.4, 0.2]) - mu) / std
 a1_s, a2_s, a3_s = forward(sample.reshape(1, -1))
 print(f"Sample softmax: {a3_s.round(4)}  -> class {a3_s.argmax()}")
 
-out_path = Path(__file__).parent / "nn_weights.npy"
-np.save(out_path, {
-    "W1": W1, "b1": b1,
-    "W2": W2, "b2": b2,
-    "W3": W3, "b3": b3,
-    "mu": mu, "std": std,
-    "a1": a1_s[0], "a2": a2_s[0], "a3": a3_s[0],
-})
+out_path = Path(__file__).parent / "nn_weights.npz"
+np.savez(out_path,
+    W1=W1, b1=b1, W2=W2, b2=b2, W3=W3, b3=b3,
+    mu=mu, std=std,
+    a1=a1_s[0], a2=a2_s[0], a3=a3_s[0],
+)
 print(f"Saved {out_path}")

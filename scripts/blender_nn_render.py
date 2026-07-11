@@ -16,12 +16,12 @@ except ImportError:
     sys.exit(1)
 
 # ── Load real trained weights ─────────────────────────────────────────────────
-weights_path = Path(__file__).parent / "nn_weights.npy"
+weights_path = Path(__file__).parent / "nn_weights.npz"
 if not weights_path.exists():
     print(f"ERROR: {weights_path} not found. Run: python3 scripts/train_iris_classifier.py")
     sys.exit(1)
 
-data = np.load(weights_path, allow_pickle=True).item()
+data = np.load(weights_path)
 W    = [data['W1'], data['W2'], data['W3']]
 acts = [np.ones(4), data['a1'], data['a2'], data['a3']]
 
@@ -77,7 +77,7 @@ for i, size in enumerate(layer_sizes):
         col.objects.link(neuron)
         try:
             bpy.context.scene.collection.objects.unlink(neuron)
-        except RuntimeError:
+        except Exception:
             pass
 
         layer_neu.append(neuron)
@@ -192,9 +192,9 @@ bsdf_w     = winner.data.materials[0].node_tree.nodes["Principled BSDF"]
 es         = bsdf_w.inputs['Emission Strength']
 
 es.default_value = 0.0
-es.keyframe_insert(data_path='default_value', index=0, frame=70)
+es.keyframe_insert(data_path='default_value', frame=70)
 es.default_value = 10.0
-es.keyframe_insert(data_path='default_value', index=0, frame=100)
+es.keyframe_insert(data_path='default_value', frame=100)
 
 # ── PHASE 5: Camera ───────────────────────────────────────────────────────────
 bpy.ops.object.camera_add(location=(6, -18, 5))
