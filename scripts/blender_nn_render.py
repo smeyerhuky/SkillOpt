@@ -230,10 +230,10 @@ scene.render.fps     = 24
 scene.render.engine  = 'CYCLES'
 scene.render.resolution_x = 1920
 scene.render.resolution_y = 1080
-scene.cycles.samples = 64
+scene.cycles.samples = 16
 scene.cycles.use_denoising = True
 scene.render.image_settings.file_format = 'PNG'
-scene.render.filepath = '//render/frame_'
+scene.render.filepath = str(Path(__file__).parent.parent / "render" / "frame_")
 
 print(f"Winner class: {winner_idx}  softmax: {acts[3].round(3)}")
 print("Neural Network Visualization Ready.")
