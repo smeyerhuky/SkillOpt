@@ -76,12 +76,22 @@ python3 ~/.claude/skills/okf-wikify/scripts/lint_okf.py docs/blender-render-wiki
 # 1. Train and export weights (requires numpy only)
 python3 scripts/train_iris_classifier.py
 
-# 2. Render the animation (requires Blender 3.6+ installed)
-blender --background --python scripts/blender_nn_render.py --render-anim
+# 2a. Render — single process (simple)
+blender --background --python scripts/blender_nn_render.py -a
+
+# 2b. Render — parallel (3-4× faster on CPU; N = core count)
+N=$(nproc); CHUNK=$(( (120 + N - 1) / N ))
+for i in $(seq 0 $((N-1))); do
+  S=$(( i*CHUNK+1 )); E=$(( (i+1)*CHUNK )); [ $E -gt 120 ] && E=120
+  nohup blender --background --threads 1 --python scripts/blender_nn_render.py \
+        -s $S -e $E -a > /tmp/bl_w${i}.log 2>&1 &
+done; wait
 
 # 3. Assemble MP4 (requires ffmpeg)
 ffmpeg -framerate 24 -i render/frame_%04d.png -c:v libx264 -pix_fmt yuv420p -crf 18 output/nn_animation.mp4
 ```
+
+See `docs/blender-render-wiki/stages/05-render.md` for the full parallel technique rationale and resume-from-crash instructions.
 
 ## Extending this bundle
 
