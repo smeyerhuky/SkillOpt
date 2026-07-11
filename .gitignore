@@ -65,4 +65,4 @@ tests/launch_*.py
 # Generated Blender render artifacts
 scripts/nn_weights.np[yz]
 render/
-output/*.mp4
+output/
