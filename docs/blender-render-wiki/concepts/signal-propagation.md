@@ -1,58 +1,85 @@
 ---
 type: "Concept"
 title: "Signal Propagation Animation"
-description: "How FOLLOW_PATH constraints with animated offset_factor simulate neural signal flow along synapses."
+description: "How direct location keyframes with scale-based visibility simulate neural signal flow along synapses, replacing the unreliable FOLLOW_PATH approach."
 resource: "file:///home/user/SkillOpt/scripts/blender_nn_render.py#PHASE-3"
-tags: ["animation", "follow-path", "constraint", "signal", "particle", "keyframe"]
+tags: ["animation", "location-keyframe", "scale-visibility", "signal", "particle", "blender-4.2"]
 timestamp: "2026-07-11"
 ---
 
 # Signal Propagation Animation
 
-## The mechanism
+## The mechanism (corrected implementation)
 
-Each signal is an icosphere (radius 0.15) with a `FOLLOW_PATH` constraint targeting a synapse curve. The constraint's `offset_factor` is keyframed from 0.0 to 1.0 over 30 frames, causing the sphere to travel from the pre-synaptic neuron to the post-synaptic neuron.
+Each signal is an icosphere (radius 0.15, emission strength 10.0, warm yellow color) that travels from the pre-synaptic neuron's world position to the post-synaptic neuron's position over `SIGNAL_FRAMES = 30` frames. Visibility is controlled via `scale` keyframes (the `hide_render` approach is broken in Blender 4.2 — see below).
 
 ```python
-fmod = particle.constraints.new(type='FOLLOW_PATH')
-fmod.target    = synapse_obj
-fmod.use_curve_follow = True
-fmod.use_fixed_location = True
-fmod.forward_axis = 'TRACK_NEGATIVE_Y'
-fmod.up_axis = 'UP_Y'
+def add_signal_particle(synapse_obj, start_pos, end_pos, start_frame):
+    from mathutils import Vector
+    s = Vector(start_pos)
+    e = Vector(end_pos)
 
-fmod.offset_factor = 0.0
-fmod.keyframe_insert(data_path="offset_factor", frame=start_frame)
-fmod.offset_factor = 1.0
-fmod.keyframe_insert(data_path="offset_factor", frame=start_frame + 30)
+    bpy.ops.mesh.primitive_ico_sphere_add(radius=0.15, location=s)
+    p = bpy.context.active_object
+
+    # Yellow emission material
+    mat = bpy.data.materials.new(f"Mat_{p.name}")
+    mat.use_nodes = True
+    bsdf = mat.node_tree.nodes["Principled BSDF"]
+    bsdf.inputs['Emission Color'].default_value    = (1.0, 0.85, 0.15, 1.0)
+    bsdf.inputs['Emission Strength'].default_value = 10.0
+    p.data.materials.append(mat)
+
+    end_frame = start_frame + SIGNAL_FRAMES
+
+    # Direct location keyframes — reliable across all Blender versions
+    p.location = s
+    p.keyframe_insert(data_path="location", frame=start_frame)
+    p.location = e
+    p.keyframe_insert(data_path="location", frame=end_frame)
+
+    # Visibility via scale — hide_render boolean keyframes silently fail in Blender 4.2
+    p.scale = (0.0, 0.0, 0.0)
+    p.keyframe_insert(data_path="scale", frame=max(1, start_frame - 1))
+    p.scale = (1.0, 1.0, 1.0)
+    p.keyframe_insert(data_path="scale", frame=start_frame)
+    p.scale = (0.0, 0.0, 0.0)
+    p.keyframe_insert(data_path="scale", frame=end_frame + 1)
+
+    # LINEAR interpolation for constant-speed travel
+    if p.animation_data and p.animation_data.action:
+        for fc in p.animation_data.action.fcurves:
+            for kp in fc.keyframe_points:
+                kp.interpolation = 'LINEAR'
 ```
+
+## Why not FOLLOW_PATH?
+
+The original design used a `FOLLOW_PATH` constraint with an animated `offset_factor` to send particles along the Bezier synapse curves. This approach has two fatal problems in Blender 4.2 headless render:
+
+1. **`hide_render` keyframes silently fail** (Bug 5) — particles are permanently hidden regardless of keyframes.
+2. **`offset_factor` constraint keyframes don't evaluate correctly in headless mode** (Bug 6) — particles freeze at their default position.
+
+The direct `location` keyframe approach loses the curved path (particles travel in straight lines between neuron positions rather than along the Bezier synapse), but it works reliably in all Blender versions including 4.2 headless, which is the execution environment for this pipeline. At the camera distance used (−18 units in Y), the straight-line travel is visually acceptable.
 
 ## Timing strategy for layered propagation
 
-To show layer-by-layer forward propagation, stagger `start_frame` by layer:
+`layer_starts` staggers each wave so propagation appears left-to-right:
 
-| Layer transition | Start frame | End frame |
-|---|---|---|
-| L0 → L1 | 1 | 31 |
-| L1 → L2 | 35 | 65 |
-| L2 → L3 | 70 | 100 |
+| Layer transition | Start frame | End frame | Gap before |
+|---|---|---|---|
+| L0 → L1 | 1 | 31 | — |
+| L1 → L2 | 35 | 65 | 4 frames |
+| L2 → L3 | 70 | 100 | 5 frames |
 
-This gives 4-frame gaps between layers for visual clarity. Total animation: ~100 frames at 24 fps = ~4.2 seconds.
-
-## Known bug: FOLLOW_TRACK stub
-
-The original script adds a `FOLLOW_TRACK` constraint immediately before adding `FOLLOW_PATH`. The `FOLLOW_TRACK` constraint has no target and is never removed — it silently coexists with `FOLLOW_PATH`. In practice `FOLLOW_PATH` takes precedence but the orphaned constraint wastes memory and causes warnings. The fix: remove the `FOLLOW_TRACK` line entirely. See [script-reference/known-bugs.md](../script-reference/known-bugs.md).
-
-## Phase 3 stub
-
-The original script's Phase 3 loop ends with `pass` — the `add_signal_particle` function is defined but never called in the connection loop. The improved script calls it for every synapse with the correct stagger. See [script-reference/improved-script.md](../script-reference/improved-script.md).
+Winner output neuron brightens from frame 70 to 100 (overlapping the final wave). Total animation: 120 frames at 24 fps = 5.0 seconds.
 
 ## Activation-driven gating
 
-In the improved script, only synapses where the pre-synaptic activation > 0.1 actually spawn a particle — visually suppressing signals along silent pathways and making the forward pass legible for a specific sample input.
+Only pre-synaptic neurons with activation > `ACTIVATION_THRESHOLD = 0.05` spawn signal particles. The input layer always fires (`acts[0] = np.ones(4)`). Hidden layers use the trained forward-pass values, so only actually-active pathways are visualised. This makes the forward pass legible.
 
 ## Cross-links
 
-- [blender-api/follow-path.md](../blender-api/follow-path.md) — FOLLOW_PATH API details
 - [stages/04-animate.md](../stages/04-animate.md) — PDLC stage for the full animation setup
-- [script-reference/known-bugs.md](../script-reference/known-bugs.md) — FOLLOW_TRACK bug
+- [script-reference/known-bugs.md](../script-reference/known-bugs.md) — Bugs 5 & 6 (hide_render + FOLLOW_PATH failures)
+- [blender-api/follow-path.md](../blender-api/follow-path.md) — FOLLOW_PATH API (not used in corrected script)
