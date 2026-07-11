@@ -141,49 +141,56 @@ for i in range(len(neurons) - 1):
     synapses.append(layer_syn)
 
 # ── PHASE 3: Signal particles ─────────────────────────────────────────────────
-def add_signal_particle(synapse_obj, start_frame):
-    bpy.ops.mesh.primitive_ico_sphere_add(radius=0.12, location=(0, 0, 0))
+# hide_render boolean keyframes silently fail in Blender 4.2; use scale=(0,0,0)
+# instead. FOLLOW_PATH offset_factor constraint keyframes also unreliable in
+# headless render — replaced with direct location keyframes (start→end neuron).
+def add_signal_particle(synapse_obj, start_pos, end_pos, start_frame):
+    from mathutils import Vector
+    s = Vector(start_pos)
+    e = Vector(end_pos)
+
+    bpy.ops.mesh.primitive_ico_sphere_add(radius=0.15, location=s)
     p      = bpy.context.active_object
     p.name = f"Signal_{synapse_obj.name}"
-    p.location = (0, 0, 0)
 
     mat = bpy.data.materials.new(f"Mat_{p.name}")
     mat.use_nodes = True
     bsdf = mat.node_tree.nodes["Principled BSDF"]
-    bsdf.inputs['Emission Color'].default_value    = (1.0, 0.9, 0.3, 1.0)
-    bsdf.inputs['Emission Strength'].default_value = 6.0
+    bsdf.inputs['Emission Color'].default_value    = (1.0, 0.85, 0.15, 1.0)
+    bsdf.inputs['Emission Strength'].default_value = 10.0
     p.data.materials.append(mat)
 
-    fmod                    = p.constraints.new(type='FOLLOW_PATH')
-    fmod.target             = synapse_obj
-    fmod.use_curve_follow   = True
-    fmod.use_fixed_location = True
-    fmod.forward_axis       = 'TRACK_NEGATIVE_Y'
-    fmod.up_axis            = 'UP_Y'
+    end_frame = start_frame + SIGNAL_FRAMES
 
-    fmod.offset_factor = 0.0
-    fmod.keyframe_insert(data_path="offset_factor", frame=start_frame)
-    fmod.offset_factor = 1.0
-    fmod.keyframe_insert(data_path="offset_factor", frame=start_frame + SIGNAL_FRAMES)
+    # Location: travel from pre-neuron to post-neuron over SIGNAL_FRAMES
+    p.location = s
+    p.keyframe_insert(data_path="location", frame=start_frame)
+    p.location = e
+    p.keyframe_insert(data_path="location", frame=end_frame)
+
+    # Visibility via scale — reliable in all Blender versions
+    p.scale = (0.0, 0.0, 0.0)
+    p.keyframe_insert(data_path="scale", frame=max(1, start_frame - 1))
+    p.scale = (1.0, 1.0, 1.0)
+    p.keyframe_insert(data_path="scale", frame=start_frame)
+    p.scale = (0.0, 0.0, 0.0)
+    p.keyframe_insert(data_path="scale", frame=end_frame + 1)
 
     if p.animation_data and p.animation_data.action:
         for fc in p.animation_data.action.fcurves:
             for kp in fc.keyframe_points:
                 kp.interpolation = 'LINEAR'
 
-    p.hide_render = True
-    p.keyframe_insert(data_path="hide_render", frame=1)
-    p.hide_render = False
-    p.keyframe_insert(data_path="hide_render", frame=start_frame)
-    p.hide_render = True
-    p.keyframe_insert(data_path="hide_render", frame=start_frame + SIGNAL_FRAMES + 1)
-
 for i in range(len(neurons) - 1):
-    for j in range(len(neurons[i])):
+    for j, n_a in enumerate(neurons[i]):
         if acts[i][j] < ACTIVATION_THRESHOLD:
             continue
-        for k in range(len(neurons[i + 1])):
-            add_signal_particle(synapses[i][j][k], layer_starts[i])
+        for k, n_b in enumerate(neurons[i + 1]):
+            add_signal_particle(
+                synapses[i][j][k],
+                n_a.location, n_b.location,
+                layer_starts[i]
+            )
 
 # ── PHASE 4: Winner output neuron brightening ─────────────────────────────────
 winner_idx = int(acts[3].argmax())
