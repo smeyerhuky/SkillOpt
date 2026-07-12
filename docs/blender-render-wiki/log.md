@@ -1,3 +1,7 @@
+## 2026-07-12
+
+* **Blender environment reference**: Added `blender-api/environment.md` documenting all environment details needed to reproduce the render: Blender 4.2 + Python 3.11, AgX color management (default in 4.x, affects emission tone), Cycles CPU render settings (16 samples + OIDN denoising), Principled BSDF input name changes from 3.x to 4.x (`'Emission'` → `'Emission Color'` + `'Emission Strength'`), camera/lighting/world parameters, headless CLI flags, and geometry primitive reference. Added to `blender-api/index.md`.
+
 ## 2026-07-11
 
 * **Creation**: Initial OKF bundle built from the user-provided Blender neural network script and SkillOpt repo context. Five directories: stages/ (PDLC pipeline), concepts/ (core ideas), blender-api/ (API reference), script-reference/ (original + improved script). Four bugs catalogued and fixed in improved-script.md.
