@@ -61,3 +61,8 @@ docs/让*
 tests/run_*.sh
 tests/launch_*.py
 *.launch.log
+
+# Generated Blender render artifacts
+scripts/nn_weights.np[yz]
+render/
+output/

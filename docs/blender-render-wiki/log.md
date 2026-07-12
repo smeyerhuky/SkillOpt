@@ -1,0 +1,9 @@
+## 2026-07-12
+
+* **Blender environment reference**: Added `blender-api/environment.md` documenting all environment details needed to reproduce the render: Blender 4.2 + Python 3.11, AgX color management (default in 4.x, affects emission tone), Cycles CPU render settings (16 samples + OIDN denoising), Principled BSDF input name changes from 3.x to 4.x (`'Emission'` → `'Emission Color'` + `'Emission Strength'`), camera/lighting/world parameters, headless CLI flags, and geometry primitive reference. Added to `blender-api/index.md`.
+
+## 2026-07-11
+
+* **Creation**: Initial OKF bundle built from the user-provided Blender neural network script and SkillOpt repo context. Five directories: stages/ (PDLC pipeline), concepts/ (core ideas), blender-api/ (API reference), script-reference/ (original + improved script). Four bugs catalogued and fixed in improved-script.md.
+* **Parallel render technique**: Added to `stages/05-render.md` and `CLAUDE.md`. On a 4-core CPU-only machine, running one Blender instance per core with `--threads 1` across non-overlapping frame ranges achieves ~3× wall-clock speedup over the default single-process render. Validated during headless render of the 120-frame Iris classifier animation (16 Cycles samples + denoising, 1920×1080).
+* **Static animation root-cause fix**: Full render analysis revealed two Blender 4.2 API regressions that caused the animation to appear static (0 yellow pixels across all 120 frames). (1) `keyframe_insert(data_path="hide_render")` silently fails — no error, no keyframe stored, particles permanently hidden. (2) `FOLLOW_PATH` constraint `offset_factor` keyframes unreliable in headless render. Fixed in `scripts/blender_nn_render.py` PHASE 3: replaced both with `scale` keyframes for visibility and direct `location` keyframes for movement. Catalogued as Bugs 5 & 6 in `script-reference/known-bugs.md`. Updated `concepts/signal-propagation.md` to document corrected mechanism.
