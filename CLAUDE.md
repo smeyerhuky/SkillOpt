@@ -1,6 +1,6 @@
-# SkillOpt Playground
+# Playground
 
-A playground environment for SkillOpt experimentation and development.
+A playground environment for experimentation and development.
 
 ## Directory Structure
 
